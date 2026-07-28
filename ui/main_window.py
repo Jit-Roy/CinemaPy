@@ -100,16 +100,13 @@ class MainWindow(QMainWindow):
         basedir = Path(__file__).resolve().parent.parent
         abs_icon = str(basedir / "assets" / "icons" / "app_icon.ico")
         
-        if sys.platform == "win32":
-            # Windows 11 Hack: Make the title bar icon fully transparent to hide it natively from DWM.
-            # The real taskbar icon is secretly injected via Win32 inside showEvent() -> _apply_dwm_titlebar()
-            from PySide6.QtGui import QPixmap
-            from PySide6.QtCore import Qt
-            empty_pix = QPixmap(1, 1)
-            empty_pix.fill(Qt.transparent)
-            self.setWindowIcon(QIcon(empty_pix))
-        else:
+        import sys
+        if sys.platform != "win32":
             # Linux and macOS gracefully use the native icon (Mac doesn't show titlebar icons natively anyway)
+            from PySide6.QtGui import QIcon
+            from pathlib import Path
+            basedir = Path(__file__).resolve().parent.parent
+            abs_icon = str(basedir / "assets" / "icons" / "app_icon.ico")
             self.setWindowIcon(QIcon(abs_icon))
         
         self.all_detail_pages = []
@@ -201,6 +198,9 @@ class MainWindow(QMainWindow):
         # Apply native styles AFTER the window is shown, so Qt doesn't overwrite them
         self._apply_dwm_titlebar()
 
+    def nativeEvent(self, eventType, message):
+        return super().nativeEvent(eventType, message)
+
     def _apply_dwm_titlebar(self):
         import sys
         if sys.platform != "win32":
@@ -223,31 +223,16 @@ class MainWindow(QMainWindow):
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
                 hwnd, DWMWA_TEXT_COLOR, ctypes.byref(c_int(color)), ctypes.sizeof(c_int))
                 
-            # --- 2. Inject the REAL icon into the Taskbar (ICON_BIG) ---
-            # Since we set a transparent window icon in __init__, the title bar is blank.
-            # But the taskbar is also blank. We use Win32 to manually force the taskbar icon back!
-            user32 = ctypes.windll.user32
-            from pathlib import Path
-            basedir = Path(__file__).resolve().parent.parent
-            abs_icon = str(basedir / "assets" / "icons" / "app_icon.ico")
-            
-            hicon = user32.LoadImageW(
-                0, 
-                abs_icon, 
-                1, # IMAGE_ICON
-                0, 0, 
-                0x0010 | 0x0040 # LR_LOADFROMFILE | LR_DEFAULTSIZE
-            )
-            
-            if hicon:
-                WM_SETICON = 0x0080
-                ICON_BIG = 1
-                user32.SendMessageW.restype = ctypes.c_ssize_t
-                user32.SendMessageW.argtypes = [wintypes.HWND, ctypes.c_uint, ctypes.c_ssize_t, ctypes.c_ssize_t]
-                user32.SendMessageW(wintypes.HWND(hwnd), WM_SETICON, ICON_BIG, hicon)
+            # --- 2. Hide the title bar icon natively ---
+            # We must re-apply this here because Qt forcibly resets GWL_EXSTYLE during window.show()
+            try:
+                from ui.win32_utils import hide_titlebar_icon
+                hide_titlebar_icon(hwnd)
+            except Exception as e:
+                print(f"Failed to hide titlebar icon: {e}")
                 
-        except Exception as e:
-            print(f"Failed to set DWM attributes: {e}")
+        except Exception:
+            pass
 
     def _on_api_key_changed(self):
         # Refresh grid pages when the API key is updated
@@ -358,8 +343,6 @@ class MainWindow(QMainWindow):
     def update_nav_icons(self):
         if hasattr(self, 'logo_widget'):
             self.logo_widget.update()
-
-        self._apply_dwm_titlebar()
             
         from PySide6.QtGui import QIcon
         self.discover_btn.setIcon(QIcon("assets/icons/discover_active.svg" if self.discover_btn.isChecked() else "assets/icons/discover.svg"))

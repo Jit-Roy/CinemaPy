@@ -270,6 +270,7 @@ class SettingsPage(QWidget):
             self.api_input.style().unpolish(self.api_input)
             self.api_input.style().polish(self.api_input)
         else:
+            self.edit_btn.setFocus()
             self.api_input.style().unpolish(self.api_input)
             self.api_input.style().polish(self.api_input)
 

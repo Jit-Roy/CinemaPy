@@ -94,8 +94,16 @@ def main():
     QThreadPool.globalInstance().start(PrefetchWorker())
             
     window = MainWindow()
-    window.show()
+    window.setWindowIcon(QIcon(abs_icon))
     
+    if not getattr(sys, 'frozen', False):
+        try:
+            from ui.win32_utils import setup_windows_identity
+            setup_windows_identity(window, myappid, abs_icon)
+        except Exception as e:
+            print(f"Failed to setup windows identity: {e}")
+            
+    window.show()
     
     sys.exit(app.exec())
 
