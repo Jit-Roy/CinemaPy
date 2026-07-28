@@ -48,6 +48,8 @@ Save movies, discover hidden gems, get personalized recommendations, watch, down
 
 ## Running Locally
 
+<span style="color:red">**Note:** *Tested for Windows 11. Not tested for Linux or Mac.*</span>
+
 To run the application from source, make sure you have Python installed, then follow these steps:
 
 1. Install the required dependencies:
