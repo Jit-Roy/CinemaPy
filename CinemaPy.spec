@@ -32,7 +32,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='The Stories I Have Seen',
+    name='CinemaPy',
     debug=False,
     icon='assets/icons/app_icon.ico',
     bootloader_ignore_signals=False,
@@ -52,5 +52,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='The Stories I Have Seen',
+    name='CinemaPy',
 )

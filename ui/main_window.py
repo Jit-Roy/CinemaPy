@@ -90,7 +90,7 @@ class _StatusWorker(QRunnable):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("The Stories I Carry")
+        self.setWindowTitle("CinemaPy")
         self.setMinimumSize(1200, 800)
         
         from PySide6.QtGui import QIcon
@@ -210,7 +210,7 @@ class MainWindow(QMainWindow):
         self.logo_icon.setStyleSheet("background-color: transparent; border: none;")
         self.logo_icon.setPixmap(QIcon("assets/icons/main_logo.svg").pixmap(36, 36))
 
-        logo_text = QLabel("The Stories I Carry")
+        logo_text = QLabel("CinemaPy")
         logo_text.setStyleSheet("font-size: 15px; font-weight: bold; color: white; background-color: transparent; border: none;")
 
         logo_layout.addWidget(self.logo_icon)
