@@ -262,32 +262,20 @@ class MainWindow(QMainWindow):
         self.left_sidebar.setFixedWidth(255)
         layout = QVBoxLayout(self.left_sidebar)
         layout.setAlignment(Qt.AlignTop)
-        # Reduced right margin to 10 to give the title text more room
         layout.setContentsMargins(20, 30, 10, 20)
 
         logo_container = QWidget()
         logo_layout = QHBoxLayout(logo_container)
-        logo_layout.setContentsMargins(0, 0, 0, 10)
-        logo_layout.setAlignment(Qt.AlignLeft)
+        logo_layout.setContentsMargins(0, 16, 0, 20)
+        logo_layout.setAlignment(Qt.AlignCenter)
 
-        from PySide6.QtGui import QIcon
+        from ui.curved_logo import CurvedLogo
+        self.logo_widget = CurvedLogo("CINEMAPY")
 
-        self.logo_icon = QLabel()
-        self.logo_icon.setStyleSheet("background-color: transparent; border: none;")
-        self.logo_icon.setPixmap(QIcon("assets/icons/main_logo.svg").pixmap(36, 36))
-
-        logo_text = QLabel("CinemaPy")
-        logo_text.setStyleSheet("font-size: 15px; font-weight: bold; color: white; background-color: transparent; border: none;")
-
-        logo_layout.addWidget(self.logo_icon)
-        logo_layout.addSpacing(6)
-        logo_layout.addWidget(logo_text)
-        logo_layout.addStretch()
+        logo_layout.addWidget(self.logo_widget)
 
         layout.addWidget(logo_container)
         layout.addSpacing(30)
-
-        from PySide6.QtGui import QIcon
 
         nav_style = """
             QPushButton {
@@ -302,7 +290,6 @@ class MainWindow(QMainWindow):
                 border-top-left-radius: 0px; border-bottom-left-radius: 0px;
             }
         """
-        # Removed sub_nav_style to prevent buttons from looking like sub-menus
 
         self.discover_btn = QPushButton("  Discover")
         self.discover_btn.setStyleSheet(nav_style)
@@ -369,6 +356,11 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.left_sidebar)
 
     def update_nav_icons(self):
+        if hasattr(self, 'logo_widget'):
+            self.logo_widget.update()
+
+        self._apply_dwm_titlebar()
+            
         from PySide6.QtGui import QIcon
         self.discover_btn.setIcon(QIcon("assets/icons/discover_active.svg" if self.discover_btn.isChecked() else "assets/icons/discover.svg"))
         self.movies_btn.setIcon(QIcon("assets/icons/movies_active.svg" if self.movies_btn.isChecked() else "assets/icons/movies.svg"))
@@ -378,8 +370,6 @@ class MainWindow(QMainWindow):
         self.analytics_btn.setIcon(QIcon("assets/icons/analytics_active.svg" if self.analytics_btn.isChecked() else "assets/icons/analytics.svg"))
         self.downloads_btn.setIcon(QIcon("assets/icons/downloads_active.svg" if self.downloads_btn.isChecked() else "assets/icons/downloads.svg"))
         self.settings_btn.setIcon(QIcon("assets/icons/settings_active.svg" if self.settings_btn.isChecked() else "assets/icons/settings.svg"))
-        if hasattr(self, 'logo_icon'):
-            self.logo_icon.setPixmap(QIcon("assets/icons/main_logo.svg").pixmap(36, 36))
 
         if hasattr(self, 'search_glow'):
             from ui.theme_manager import ThemeManager
