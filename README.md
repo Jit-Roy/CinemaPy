@@ -26,7 +26,12 @@ Save movies, discover hidden gems, get personalized recommendations, watch, down
 <div align="center">
   <h3>The Discover Page</h3>
   <p>Immaculate vibes only. Find your next hyperfixation right here. Serving pure algorithmic slay.</p>
-  <img src="docs/Screenshot.png" alt="Discover Page" width="90%">
+  <img src="docs/Discover.png" alt="Discover Page" width="90%">
+  <br><br>
+
+  <h3>Deep Lore</h3>
+  <p>The tea on every movie. Cast, crew, and stats looking immaculate. Straight heat, no cap.</p>
+  <img src="docs/Movie_Details.png" alt="Movie Details" width="90%">
   <br><br>
 
   <h3>Your Cinematic Universe</h3>
@@ -37,6 +42,21 @@ Save movies, discover hidden gems, get personalized recommendations, watch, down
   <h3>Binge-Watching Era</h3>
   <p>Living rent-free in your head? Track it here. Time to lock in and touch grass never.</p>
   <img src="docs/Tv_Series.png" alt="TV Series Page" width="90%">
+  <br><br>
+
+  <h3>The Vault</h3>
+  <p>Gatekeeping is out, flexing your curated taste is in. Your custom collections looking absolutely elite.</p>
+  <img src="docs/Collection.png" alt="Collection Page" width="90%">
+  <br><br>
+
+  <h3>The Backlog</h3>
+  <p>Everything you swore you'd watch but keep putting off. We see you trying to manifest more free time.</p>
+  <img src="docs/Wishlist.png" alt="Wishlist Page" width="90%">
+  <br><br>
+
+  <h3>Stat Check</h3>
+  <p>Are you a certified cinephile or just chronically online? The data literally doesn't lie. Period.</p>
+  <img src="docs/Analytics.png" alt="Analytics Page" width="90%">
   <br><br>
 
   <h3>The Control Room</h3>
