@@ -59,6 +59,11 @@ Save movies, discover hidden gems, get personalized recommendations, watch, down
   <img src="docs/Analytics.png" alt="Analytics Page" width="90%">
   <br><br>
 
+  <h3>The Stash</h3>
+  <p>Offline mode activated. Hoarding your favorite cinema for when the Wi-Fi acts up. Unbothered, moisturized, watching movies.</p>
+  <img src="docs/Downloads.png" alt="Downloads Page" width="90%">
+  <br><br>
+
   <h3>The Control Room</h3>
   <p>Customize your vibe and drop that API key. We love a clean, tailored aesthetic. It’s giving ✨ organized ✨.</p>
   <img src="docs/Settings.png" alt="Settings Page" width="90%">
