@@ -90,14 +90,27 @@ class _StatusWorker(QRunnable):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        
         self.setWindowTitle("CinemaPy")
         self.setMinimumSize(1200, 800)
         
+        import sys
         from PySide6.QtGui import QIcon
         from pathlib import Path
         basedir = Path(__file__).resolve().parent.parent
         abs_icon = str(basedir / "assets" / "icons" / "app_icon.ico")
-        self.setWindowIcon(QIcon(abs_icon))
+        
+        if sys.platform == "win32":
+            # Windows 11 Hack: Make the title bar icon fully transparent to hide it natively from DWM.
+            # The real taskbar icon is secretly injected via Win32 inside showEvent() -> _apply_dwm_titlebar()
+            from PySide6.QtGui import QPixmap
+            from PySide6.QtCore import Qt
+            empty_pix = QPixmap(1, 1)
+            empty_pix.fill(Qt.transparent)
+            self.setWindowIcon(QIcon(empty_pix))
+        else:
+            # Linux and macOS gracefully use the native icon (Mac doesn't show titlebar icons natively anyway)
+            self.setWindowIcon(QIcon(abs_icon))
         
         self.all_detail_pages = []
         self.all_grid_pages = []
@@ -182,6 +195,59 @@ class MainWindow(QMainWindow):
         self.analytics_dirty = False
         
         ThemeManager.apply_theme_to_app()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Apply native styles AFTER the window is shown, so Qt doesn't overwrite them
+        self._apply_dwm_titlebar()
+
+    def _apply_dwm_titlebar(self):
+        import sys
+        if sys.platform != "win32":
+            return
+            
+        try:
+            import ctypes
+            from ctypes import wintypes
+            from ctypes import c_int
+            
+            hwnd = int(self.winId())
+            
+            # --- 1. Paint the title bar and hide text using DWM ---
+            color = 0x001A1311
+            DWMWA_CAPTION_COLOR = 35
+            DWMWA_TEXT_COLOR = 36
+            
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_CAPTION_COLOR, ctypes.byref(c_int(color)), ctypes.sizeof(c_int))
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_TEXT_COLOR, ctypes.byref(c_int(color)), ctypes.sizeof(c_int))
+                
+            # --- 2. Inject the REAL icon into the Taskbar (ICON_BIG) ---
+            # Since we set a transparent window icon in __init__, the title bar is blank.
+            # But the taskbar is also blank. We use Win32 to manually force the taskbar icon back!
+            user32 = ctypes.windll.user32
+            from pathlib import Path
+            basedir = Path(__file__).resolve().parent.parent
+            abs_icon = str(basedir / "assets" / "icons" / "app_icon.ico")
+            
+            hicon = user32.LoadImageW(
+                0, 
+                abs_icon, 
+                1, # IMAGE_ICON
+                0, 0, 
+                0x0010 | 0x0040 # LR_LOADFROMFILE | LR_DEFAULTSIZE
+            )
+            
+            if hicon:
+                WM_SETICON = 0x0080
+                ICON_BIG = 1
+                user32.SendMessageW.restype = ctypes.c_ssize_t
+                user32.SendMessageW.argtypes = [wintypes.HWND, ctypes.c_uint, ctypes.c_ssize_t, ctypes.c_ssize_t]
+                user32.SendMessageW(wintypes.HWND(hwnd), WM_SETICON, ICON_BIG, hicon)
+                
+        except Exception as e:
+            print(f"Failed to set DWM attributes: {e}")
 
     def _on_api_key_changed(self):
         # Refresh grid pages when the API key is updated

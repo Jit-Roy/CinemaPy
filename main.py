@@ -96,13 +96,6 @@ def main():
     window = MainWindow()
     window.show()
     
-    # In raw Python mode, we use a 0-millisecond timer to apply the icon on the exact first 
-    # cycle of the Qt event loop. This bypasses the Windows HWND creation race condition 
-    # without introducing any visible delay!
-    if not getattr(sys, 'frozen', False):
-        from PySide6.QtCore import QTimer
-        from PySide6.QtGui import QIcon
-        QTimer.singleShot(0, lambda: window.setWindowIcon(QIcon(abs_icon)))
     
     sys.exit(app.exec())
 
