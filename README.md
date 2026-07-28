@@ -1,6 +1,6 @@
 <div align="center">
 
-# The Stories I Have Seen
+# CinemaPy
 
 <img src="docs/Banner.png" alt="Banner" width="100%">
 
