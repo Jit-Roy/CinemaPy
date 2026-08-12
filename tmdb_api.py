@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 
 import sys
 
-# Use global cache directory for all app data
-application_path = os.path.join(os.path.expanduser("~"), ".cache", "tsic")
+# Use global AppData directory for all app data
+application_path = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'CinemaPy')
 os.makedirs(application_path, exist_ok=True)
 
 ENV_PATH = os.path.join(application_path, ".env")

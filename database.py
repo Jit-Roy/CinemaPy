@@ -11,8 +11,8 @@ def _get_conn():
     return _local_data.conn
 
 
-# Use global cache directory for all app data
-application_path = os.path.join(os.path.expanduser("~"), ".cache", "tsic")
+# Use global AppData directory for the database to match main.py
+application_path = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'CinemaPy')
 os.makedirs(application_path, exist_ok=True)
 
 DB_NAME = os.path.join(application_path, "movies.db")

@@ -8,7 +8,7 @@ import os
 # ---------------------------------------------------------------------------
 # Disk-persistent image cache with in-memory LRU layer
 # ---------------------------------------------------------------------------
-_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "tsic", "images")
+_CACHE_DIR = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'CinemaPy', 'images')
 os.makedirs(_CACHE_DIR, exist_ok=True)
 
 _MEM_CACHE_MAX = 300            # max number of images kept in RAM

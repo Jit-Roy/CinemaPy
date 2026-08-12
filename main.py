@@ -20,7 +20,7 @@ def main():
         
     # Global AppData Setup
     import shutil
-    app_data_dir = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'TheStoriesICarry')
+    app_data_dir = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'CinemaPy')
     os.makedirs(app_data_dir, exist_ok=True)
     
     # Copy assets to AppData if they don't exist
@@ -50,7 +50,7 @@ def main():
     # Setting AppUserModelID globally BEFORE QApplication fixes the Windows 11 
     # taskbar click-to-minimize bug by properly syncing the process HWND group,
     # while retaining the 0ms icon load because it happens before Qt initializes.
-    myappid = 'MyStories.app.1.0'
+    myappid = 'CinemaPy.app.1.0'
     try:
         # Only set this manually if running from Python. 
         # Setting it in a compiled .exe detaches it from the embedded executable icon!

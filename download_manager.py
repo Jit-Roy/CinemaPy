@@ -173,7 +173,7 @@ class DownloadManager(QObject):
         self.active_downloads = {} # tmdb_id -> { "movie_data": ..., "status": ... }
         self.abort_events = {}
         self.download_path = database.get_setting("download_dir", os.path.join(os.path.expanduser("~"), "Downloads"))
-        application_path = os.path.join(os.path.expanduser("~"), ".cache", "tsic")
+        application_path = os.path.join(os.getenv('LOCALAPPDATA', os.path.expanduser('~')), 'CinemaPy')
         os.makedirs(application_path, exist_ok=True)
         self.history_file = os.path.join(application_path, "downloads_history.json")
         os.makedirs(self.download_path, exist_ok=True)

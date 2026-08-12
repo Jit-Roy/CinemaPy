@@ -98,9 +98,9 @@ Simply launch the application, navigate to the **Settings** tab on the left menu
 
 ### 2. The Manual Way
 If you prefer setting it up before launching, you can manually create a `.env` file inside the application's global cache directory.
-- **Windows**: `C:\Users\YourUsername\.cache\tsic\.env`
-- **Linux**: `/home/YourUsername/.cache/tsic/.env`
-- **Mac**: `/Users/YourUsername/.cache/tsic/.env`
+- **Windows**: `C:\Users\YourUsername\AppData\Local\CinemaPy\.env`
+- **Linux**: `/home/YourUsername/CinemaPy/.env`
+- **Mac**: `/Users/YourUsername/CinemaPy/.env`
 
 Add the following line to the file:
 ```env
@@ -110,7 +110,8 @@ TMDB_API_KEY=your_api_key_here
 
 ### Where is my movie database?
 Your personal movie collection, watch history, and app configurations are synced globally. You can find your `movies.db` database file inside the same cache directory:
-`~/.cache/tsic/movies.db`
+- **Windows**: `%LOCALAPPDATA%\CinemaPy\movies.db`
+- **Linux/Mac**: `~/CinemaPy/movies.db`
 
 You can easily copy this file to back up your watch history or transfer it to another computer!
 
