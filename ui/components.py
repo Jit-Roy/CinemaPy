@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QComboBox, QFrame, QSpinBox
 from PySide6.QtGui import QPixmap, QImage, QPainter, QPainterPath
-from PySide6.QtCore import Qt, QUrl, QRunnable, QThreadPool, Signal, QObject
+from PySide6.QtCore import Qt, QUrl, QRunnable, QThreadPool, Signal, QObject, QEvent
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 import requests
 
@@ -471,6 +471,57 @@ class ResizableScrollArea(QScrollArea):
         if self.viewport():
             self.flow_layout.reflow(self.viewport().width())
 
+
+class HorizontalFilterScrollArea(QScrollArea):
+    """Scroll filter controls horizontally with a wheel, trackpad, or arrows."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWidgetResizable(True)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+    def setWidget(self, widget):
+        super().setWidget(widget)
+        widget.installEventFilter(self)
+        for child in widget.findChildren(QWidget):
+            child.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Wheel:
+            return self._scroll_from_wheel(event)
+        return super().eventFilter(watched, event)
+
+    def _scroll_from_wheel(self, event):
+        delta = event.pixelDelta().x() or event.angleDelta().x()
+        if not delta:
+            delta = event.pixelDelta().y() or event.angleDelta().y()
+
+        scrollbar = self.horizontalScrollBar()
+        if scrollbar.maximum() <= 0 or not delta:
+            return False
+
+        scrollbar.setValue(scrollbar.value() - delta)
+        event.accept()
+        return True
+
+    def wheelEvent(self, event):
+        if self._scroll_from_wheel(event):
+            return
+        super().wheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Left, Qt.Key_Right):
+            step = self.horizontalScrollBar().singleStep()
+            direction = -1 if event.key() == Qt.Key_Left else 1
+            scrollbar = self.horizontalScrollBar()
+            scrollbar.setValue(scrollbar.value() + direction * step)
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+
 class FilterComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -919,11 +970,8 @@ class DiscoverFilterBar(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # 1. Scrollable filter container
-        scroll_area = QScrollArea()
+        scroll_area = HorizontalFilterScrollArea()
         scroll_area.setFixedHeight(50)
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll_area.setStyleSheet("""
             QScrollArea { border: none; background: transparent; }
         """)
