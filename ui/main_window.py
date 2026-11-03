@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedWidget
-from PySide6.QtCore import Qt, QRunnable, QThreadPool, Signal, QObject
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QStackedWidget
+from PySide6.QtCore import Qt, QEvent, QRunnable, QThreadPool, Signal, QObject, QTimer
 import database
 import tmdb_api
 
@@ -23,6 +23,7 @@ class TabStack(QStackedWidget):
         super().__init__(parent)
         self.tab_index = tab_index
         self.page_history = []
+        self.forward_history = []
         self.is_text_search = False
         self.main_page = None
         self.detail_page = None
@@ -152,7 +153,6 @@ class MainWindow(QMainWindow):
             # YIELD TO OS TO PREVENT HANG!
             # Adding 40 heavy widgets synchronously locks the UI thread, causing Windows 11 to 
             # assume the app is frozen during startup and drop the taskbar icon!
-            from PySide6.QtWidgets import QApplication
             QApplication.processEvents()
 
             t_stack = TabStack(idx)
@@ -192,6 +192,7 @@ class MainWindow(QMainWindow):
         self.analytics_dirty = False
         
         ThemeManager.apply_theme_to_app()
+        QApplication.instance().installEventFilter(self)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -441,7 +442,7 @@ class MainWindow(QMainWindow):
         
         current_index = t_stack.currentIndex()
         state = t_stack.detail_page.movie_data if current_index == 1 else (t_stack.person_page.person_id if current_index == 3 and hasattr(t_stack.person_page, 'person_id') else None)
-        t_stack.page_history.append((current_index, state))
+        self._record_navigation(t_stack, current_index, state)
         
         t_stack.person_page.person_id = person_id
         t_stack.person_page.load_person(person_id)
@@ -480,7 +481,7 @@ class MainWindow(QMainWindow):
         
         current_index = t_stack.currentIndex()
         state = self._get_current_page_state(t_stack)
-        t_stack.page_history.append((current_index, state))
+        self._record_navigation(t_stack, current_index, state)
         
         t_stack.season_page.load_season(tv_id, tv_name, season_number)
         t_stack.setCurrentIndex(4)
@@ -491,7 +492,7 @@ class MainWindow(QMainWindow):
         
         current_index = t_stack.currentIndex()
         state = self._get_current_page_state(t_stack)
-        t_stack.page_history.append((current_index, state))
+        self._record_navigation(t_stack, current_index, state)
         
         # Inject fresh DB status so buttons are correct from the very first render
         tmdb_api.inject_db_status([movie_data])
@@ -547,7 +548,7 @@ class MainWindow(QMainWindow):
             
         current_index = t_stack.currentIndex()
         state = self._get_current_page_state(t_stack)
-        t_stack.page_history.append((current_index, state))
+        self._record_navigation(t_stack, current_index, state)
         
         t_stack.is_text_search = initial_params is not None and "query" in initial_params
         t_stack.grid_page.load_grid(title, fetch_func, initial_params, card_renderer, show_filter_bar, media_type)
@@ -655,13 +656,39 @@ class MainWindow(QMainWindow):
         self._glow_anim.start()
 
     def eventFilter(self, obj, event):
-        from PySide6.QtCore import QEvent
-        if obj is self.search_bar:
+        search_bar = getattr(self, "search_bar", None)
+        if obj is search_bar:
             if event.type() == QEvent.Type.FocusIn:
                 self._set_search_style(focused=True)
             elif event.type() == QEvent.Type.FocusOut:
                 self._set_search_style(focused=False)
+        elif event.type() in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            if event.button() in (Qt.MouseButton.XButton1, Qt.MouseButton.XButton2):
+                if event.type() == QEvent.Type.MouseButtonRelease:
+                    handler = (
+                        self._handle_mouse_back
+                        if event.button() == Qt.MouseButton.XButton1
+                        else self.go_forward_to_next_page
+                    )
+                    QTimer.singleShot(0, handler)
+                return True
         return super().eventFilter(obj, event)
+
+    def _handle_mouse_back(self):
+        main_stack = getattr(self, "main_stack", None)
+        if main_stack is None:
+            return
+
+        t_stack = main_stack.currentWidget()
+        if not isinstance(t_stack, TabStack):
+            return
+
+        if t_stack.tab_index == 3 and self.collection_page.current_series is not None:
+            self.collection_page.set_series_view(None)
+        elif t_stack.tab_index == 4 and self.wishlist_page.current_series is not None:
+            self.wishlist_page.set_series_view(None)
+        else:
+            self.go_back_to_previous_page()
 
     def perform_search(self):
         t_stack = self.main_stack.currentWidget()
@@ -705,14 +732,12 @@ class MainWindow(QMainWindow):
             self.switch_page(0, self.discover_btn)
             _do_discover_search()
 
-    def go_back_to_previous_page(self):
-        t_stack = self.main_stack.currentWidget()
-        if not isinstance(t_stack, TabStack) or not t_stack.page_history:
-            return
+    def _record_navigation(self, t_stack, current_index, state):
+        t_stack.page_history.append((current_index, state))
+        t_stack.forward_history.clear()
 
-        prev_index, state = t_stack.page_history.pop()
-
-        if prev_index == 0:
+    def _restore_page(self, t_stack, page_index, state):
+        if page_index == 0:
             if t_stack.tab_index == 3:
                 self.collection_page.load_lists()
             elif t_stack.tab_index == 4:
@@ -720,12 +745,12 @@ class MainWindow(QMainWindow):
             elif t_stack.tab_index == 5:
                 self.analytics_page.load_data()
 
-        elif prev_index == 1 and state and t_stack.detail_page:
+        elif page_index == 1 and state and t_stack.detail_page:
             current_id = getattr(t_stack.detail_page, "movie_data", {}).get("id")
             if current_id != state.get("id"):
                 t_stack.detail_page.load_movie(state)
                 
-        elif prev_index == 2 and isinstance(state, dict):
+        elif page_index == 2 and isinstance(state, dict):
             current_title = getattr(t_stack.grid_page, "current_title", "")
             current_params = getattr(t_stack.grid_page, "initial_params", None)
             if current_title != state.get("title") or current_params != state.get("initial_params"):
@@ -738,19 +763,41 @@ class MainWindow(QMainWindow):
                     state.get("media_type", "movie")
                 )
                 
-        elif prev_index == 3 and state and t_stack.person_page:
+        elif page_index == 3 and state and t_stack.person_page:
             current_person_id = getattr(t_stack.person_page, "person_id", None)
             if current_person_id != state:
                 t_stack.person_page.person_id = state
                 t_stack.person_page.load_person(state)
                 
-        elif prev_index == 4 and state and t_stack.season_page:
+        elif page_index == 4 and state and t_stack.season_page:
             current_tv_id = getattr(t_stack.season_page, "tv_id", None)
             current_season = getattr(t_stack.season_page, "season_number", None)
             if current_tv_id != state.get("tv_id") or current_season != state.get("season_number"):
                 t_stack.season_page.load_season(state.get("tv_id"), state.get("tv_name"), state.get("season_number"))
 
-        t_stack.setCurrentIndex(prev_index)
+        t_stack.setCurrentIndex(page_index)
+
+    def go_back_to_previous_page(self):
+        t_stack = self.main_stack.currentWidget()
+        if not isinstance(t_stack, TabStack) or not t_stack.page_history:
+            return
+
+        t_stack.forward_history.append(
+            (t_stack.currentIndex(), self._get_current_page_state(t_stack))
+        )
+        page_index, state = t_stack.page_history.pop()
+        self._restore_page(t_stack, page_index, state)
+
+    def go_forward_to_next_page(self):
+        t_stack = self.main_stack.currentWidget()
+        if not isinstance(t_stack, TabStack) or not t_stack.forward_history:
+            return
+
+        t_stack.page_history.append(
+            (t_stack.currentIndex(), self._get_current_page_state(t_stack))
+        )
+        page_index, state = t_stack.forward_history.pop()
+        self._restore_page(t_stack, page_index, state)
 
     def _on_tab_changed(self, index):
         self._current_main_index = index
@@ -879,6 +926,7 @@ class MainWindow(QMainWindow):
                 hero_carousel.refresh_status()
 
     def closeEvent(self, event):
+        QApplication.instance().removeEventFilter(self)
         from download_manager import DownloadManager
         dm = DownloadManager()
         
