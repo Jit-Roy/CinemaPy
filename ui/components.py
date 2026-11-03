@@ -75,7 +75,8 @@ class HorizontalCarousel(QWidget):
                 widget = item.widget()
                 if isinstance(widget, MovieCard):
                     movie_id = widget.movie_data.get("id")
-                    widget.movie_data["status"] = db_cache.get(movie_id)
+                    media_type = widget.movie_data.get("media_type", "movie")
+                    widget.movie_data["status"] = db_cache.get(f"{media_type}_{movie_id}")
                     widget.update_buttons()
 
 class SegmentedToggle(QWidget):
@@ -398,9 +399,10 @@ class HeroCarousel(QWidget):
     def refresh_status(self):
         """Re-read DB status for every slide and update their buttons."""
         import tmdb_api
-        db_map = {m["id"]: m["status"] for m in __import__("database").get_movies()}
+        db_map = tmdb_api._get_db_status_map()
         for slide in self.slides:
-            slide.movie["status"] = db_map.get(slide.movie["id"])
+            media_type = slide.movie.get("media_type", "movie")
+            slide.movie["status"] = db_map.get(f"{media_type}_{slide.movie['id']}")
             slide.update_buttons()
 
 from PySide6.QtWidgets import QGridLayout

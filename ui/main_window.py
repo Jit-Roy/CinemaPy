@@ -870,11 +870,13 @@ class MainWindow(QMainWindow):
         for grid_page in getattr(self, 'all_grid_pages', []):
             grid_page.refresh_status()
             
-        # Keep the hero banner buttons in sync no matter where the change came from
-        if hasattr(self, "home_page"):
-            if hasattr(self.home_page, "hero_carousel") and self.home_page.hero_carousel is not None:
-                self.home_page.hero_carousel.refresh_status()
-            self.home_page.refresh_carousels()
+        # Keep all visible home-page cards in sync no matter where the change came from.
+        for page in (self.discover_page, self.movies_page, self.tv_page):
+            if hasattr(page, "refresh_carousels"):
+                page.refresh_carousels()
+            hero_carousel = getattr(page, "hero_carousel", None)
+            if hero_carousel is not None:
+                hero_carousel.refresh_status()
 
     def closeEvent(self, event):
         from download_manager import DownloadManager

@@ -247,11 +247,13 @@ class MovieCard(QWidget):
         self.btn_later = QPushButton()
         self.btn_later.setFixedSize(32, 32)
         self.btn_later.setCursor(Qt.PointingHandCursor)
+        self.btn_later.setFocusPolicy(Qt.NoFocus)
         self.btn_later.clicked.connect(lambda checked=False: self.on_action_click("watch_later"))
 
         self.btn_watched = QPushButton()
         self.btn_watched.setFixedSize(32, 32)
         self.btn_watched.setCursor(Qt.PointingHandCursor)
+        self.btn_watched.setFocusPolicy(Qt.NoFocus)
         self.btn_watched.clicked.connect(lambda checked=False: self.on_action_click("watched"))
 
         btn_layout.addWidget(self.btn_later)
