@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QComboBox, QFrame, QSpinBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QComboBox, QFrame, QSpinBox, QApplication
 from PySide6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 from PySide6.QtCore import Qt, QUrl, QRunnable, QThreadPool, Signal, QObject, QEvent
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -490,6 +490,9 @@ class HorizontalFilterScrollArea(QScrollArea):
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.Wheel:
+            popup = QApplication.activePopupWidget()
+            if popup is not None and popup.isVisible():
+                return super().eventFilter(watched, event)
             return self._scroll_from_wheel(event)
         return super().eventFilter(watched, event)
 
@@ -868,6 +871,10 @@ class DiscoverFilterBar(QWidget):
         self.genre_combo = MultiSelectComboBox("All Genres")
         self.genre_combo.setStyleSheet(combo_style)
 
+        # EXCLUDE GENRES
+        self.exclude_genre_combo = MultiSelectComboBox("Exclude Genres")
+        self.exclude_genre_combo.setStyleSheet(combo_style)
+
         # SORT
         self.sort_combo = FilterComboBox()
         self.sort_combo.setStyleSheet(combo_style)
@@ -984,6 +991,7 @@ class DiscoverFilterBar(QWidget):
 
         filter_layout.addWidget(self.show_me_combo)
         filter_layout.addWidget(self.genre_combo)
+        filter_layout.addWidget(self.exclude_genre_combo)
         filter_layout.addWidget(self.sort_combo)
         filter_layout.addWidget(self.country_combo)
         filter_layout.addWidget(self.language_combo)
@@ -1010,9 +1018,13 @@ class DiscoverFilterBar(QWidget):
             return
         for genre in genres:
             self.genre_combo.addItem(genre["name"], genre["id"])
+            self.exclude_genre_combo.addItem(genre["name"], genre["id"])
         if hasattr(self, '_pending_params') and "with_genres" in self._pending_params:
             genres_list = [int(x) for x in self._pending_params["with_genres"].split(",")]
             self.genre_combo.setChecked(genres_list)
+        if hasattr(self, '_pending_params') and "without_genres" in self._pending_params:
+            excluded_list = [int(x) for x in self._pending_params["without_genres"].split(",")]
+            self.exclude_genre_combo.setChecked(excluded_list)
 
     def populate_languages(self, languages):
         if self.language_combo.count() > 1:
@@ -1039,7 +1051,7 @@ class DiscoverFilterBar(QWidget):
         # Retain parameters that don't have a UI control.
         # Note: 'query' is intentionally kept in base_params so search-result
         # filter bars remember what was searched.
-        ui_keys = ["show_me", "with_genres", "sort_by", "with_original_language", 
+        ui_keys = ["show_me", "with_genres", "without_genres", "sort_by", "with_original_language",
                   "with_origin_country", "primary_release_date.gte", 
                   "primary_release_date.lte", "vote_average.gte"]
         self.base_params = {k: v for k, v in params.items() if k not in ui_keys}
@@ -1056,6 +1068,13 @@ class DiscoverFilterBar(QWidget):
             self.genre_combo.setChecked(genres_list)
         else:
             self.genre_combo.setChecked([])
+
+        if "without_genres" in params:
+            self._pending_params["without_genres"] = params["without_genres"]
+            excluded_list = [int(x) for x in str(params["without_genres"]).split(",")]
+            self.exclude_genre_combo.setChecked(excluded_list)
+        else:
+            self.exclude_genre_combo.setChecked([])
 
         if "with_original_language" in params:
             self._pending_params["with_original_language"] = params["with_original_language"]
@@ -1107,6 +1126,10 @@ class DiscoverFilterBar(QWidget):
         genres_selected = self.genre_combo.currentDataList()
         if genres_selected:
             params["with_genres"] = ",".join(map(str, genres_selected))
+
+        excluded_genres = self.exclude_genre_combo.currentDataList()
+        if excluded_genres:
+            params["without_genres"] = ",".join(map(str, excluded_genres))
 
         sort_by = self.sort_combo.currentData()
         if sort_by:

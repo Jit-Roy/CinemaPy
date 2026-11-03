@@ -182,6 +182,8 @@ class GridPage(QWidget):
             show_me = params.get("show_me", "all")
             with_genres = params.get("with_genres", "")
             genre_set = {int(x) for x in with_genres.split(",") if x.isdigit()} if with_genres else set()
+            without_genres = params.get("without_genres", "")
+            excluded_genre_set = {int(x) for x in without_genres.split(",") if x.isdigit()} if without_genres else set()
                 
             min_year = params.get("primary_release_date.gte")
             max_year = params.get("primary_release_date.lte")
@@ -209,6 +211,9 @@ class GridPage(QWidget):
                 if genre_set:
                     m_genres = set(m.get("genre_ids") or [])
                     if not m_genres.intersection(genre_set): continue
+                if excluded_genre_set:
+                    m_genres = set(m.get("genre_ids") or [])
+                    if m_genres.intersection(excluded_genre_set): continue
                         
                 if target_lang and m.get("original_language") != target_lang:
                     continue

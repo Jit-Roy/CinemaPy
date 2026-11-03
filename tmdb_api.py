@@ -550,6 +550,12 @@ def advanced_discover(params, page=1, media_type="movie"):
                     if not m_genres.intersection(req_genres):
                         continue
 
+                excluded_genres = params.get("without_genres")
+                if excluded_genres:
+                    excluded = set(int(x) for x in excluded_genres.split(","))
+                    if set(m.get("genre_ids", [])).intersection(excluded):
+                        continue
+
                 min_rating = params.get("vote_average.gte")
                 if min_rating and m.get("vote_average", 0) < float(min_rating):
                     continue
