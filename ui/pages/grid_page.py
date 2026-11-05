@@ -255,17 +255,50 @@ class GridPage(QWidget):
         else:
             # ── Custom-fetch grid ────────────────────────────────────────────
             # Restore the original fetch_func, then optionally wrap with
-            # a stateful show_me filter.
+            # stateful local filters unsupported by the source endpoint.
             self.fetch_func = self._original_fetch_func
 
-            if show_me and show_me != "all":
+            with_genres = params.get("with_genres", "")
+            genre_set = {int(x) for x in str(with_genres).split(",") if x.isdigit()} if with_genres else set()
+            without_genres = params.get("without_genres", "")
+            excluded_genre_set = {int(x) for x in str(without_genres).split(",") if x.isdigit()} if without_genres else set()
+            min_year = params.get("primary_release_date.gte")
+            max_year = params.get("primary_release_date.lte")
+            min_rating = params.get("vote_average.gte")
+            sort_by = params.get("sort_by", "popularity.desc")
+            target_lang = params.get("with_original_language")
+            target_country = params.get("with_origin_country")
+
+            if (
+                (show_me and show_me != "all")
+                or genre_set
+                or excluded_genre_set
+                or min_year
+                or max_year
+                or min_rating is not None
+                or target_lang
+                or target_country
+                or sort_by != "popularity.desc"
+            ):
                 original    = self._original_fetch_func
                 PAGE_SIZE   = 20
                 MAX_FETCHES = 15
                 # Fresh state dict per filter application — never shared between closures
                 state = {"api_page": 1, "buffer": [], "done": False}
 
-                def filtered_fetch(page, _show_me=show_me, _orig=original, _s=state):
+                def filtered_fetch(
+                    page,
+                    _show_me=show_me,
+                    _orig=original,
+                    _s=state,
+                    _genres=genre_set,
+                    _excluded=excluded_genre_set,
+                    _lang=target_lang,
+                    _country=target_country,
+                    _date_gte=min_year,
+                    _date_lte=max_year,
+                    _rating=min_rating,
+                ):
                     # Always reset on page 1 (filter was just re-applied)
                     if page == 1:
                         _s["api_page"] = 1
@@ -284,12 +317,41 @@ class GridPage(QWidget):
                         if len(raw) < PAGE_SIZE:
                             _s["done"] = True
 
-                        if _show_me == "unseen":
-                            kept = [m for m in raw if m.get("status") != "watched"]
-                        elif _show_me == "unseen_unwishlisted":
-                            kept = [m for m in raw if m.get("status") not in ("watched", "watch_later")]
-                        else:
-                            kept = raw
+                        kept = []
+                        for item in raw:
+                            if _show_me == "unseen" and item.get("status") == "watched":
+                                continue
+                            if _show_me == "unseen_unwishlisted" and item.get("status") in ("watched", "watch_later"):
+                                continue
+
+                            item_genres = {int(x) for x in (item.get("genre_ids") or []) if str(x).isdigit()}
+                            if _genres and not item_genres.intersection(_genres):
+                                continue
+                            if _excluded and item_genres.intersection(_excluded):
+                                continue
+
+                            if _lang and item.get("original_language") != _lang:
+                                continue
+
+                            item_countries = item.get("origin_country") or []
+                            if isinstance(item_countries, str):
+                                item_countries = [item_countries]
+                            if _country and _country not in item_countries:
+                                continue
+
+                            item_date = item.get("release_date") or item.get("first_air_date") or ""
+                            if _date_gte and item_date < _date_gte:
+                                continue
+                            if _date_lte and item_date > _date_lte:
+                                continue
+
+                            if _rating is not None:
+                                try:
+                                    if float(item.get("vote_average") or 0) < float(_rating):
+                                        continue
+                                except (ValueError, TypeError):
+                                    continue
+                            kept.append(item)
 
                         _s["buffer"].extend(kept)
 
@@ -297,7 +359,29 @@ class GridPage(QWidget):
                     _s["buffer"] = _s["buffer"][PAGE_SIZE:]
                     return out
 
-                self.fetch_func = filtered_fetch
+                filtered_items = filtered_fetch(1)
+                while filtered_items:
+                    next_items = filtered_fetch(2)
+                    if not next_items:
+                        break
+                    filtered_items.extend(next_items)
+
+                reverse = sort_by.endswith(".desc")
+                if sort_by.startswith("vote_average"):
+                    filtered_items.sort(key=lambda x: float(x.get("vote_average") or 0), reverse=reverse)
+                elif sort_by.startswith("primary_release_date"):
+                    filtered_items.sort(
+                        key=lambda x: x.get("release_date") or x.get("first_air_date") or "",
+                        reverse=reverse,
+                    )
+                else:
+                    filtered_items.sort(key=lambda x: float(x.get("popularity") or 0), reverse=reverse)
+
+                def local_fetch(page, items=filtered_items):
+                    start = (page - 1) * PAGE_SIZE
+                    return items[start:start + PAGE_SIZE]
+
+                self.fetch_func = local_fetch
 
         query = params.get("query")
         if query:

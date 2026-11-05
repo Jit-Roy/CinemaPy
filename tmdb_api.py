@@ -485,6 +485,28 @@ def get_collection_poster(series_name, media_type="movie"):
     return None
 
 
+def _genre_ids(value):
+    """Normalize a genre filter value from UI/API params to integer IDs."""
+    if value is None:
+        return set()
+    if isinstance(value, (list, tuple, set)):
+        values = value
+    else:
+        values = str(value).split(",")
+    return {int(item) for item in values if str(item).strip().isdigit()}
+
+
+def _matches_genre_filters(item, params):
+    required = _genre_ids(params.get("with_genres"))
+    excluded = _genre_ids(params.get("without_genres"))
+    item_genres = _genre_ids(item.get("genre_ids", []))
+
+    return (
+        (not required or item_genres.intersection(required))
+        and not item_genres.intersection(excluded)
+    )
+
+
 def advanced_discover(params, page=1, media_type="movie"):
     params = params.copy()
     show_me = params.pop("show_me", None)
@@ -543,18 +565,8 @@ def advanced_discover(params, page=1, media_type="movie"):
                     filtered.append(m)
                     continue
                     
-                genres_str = params.get("with_genres")
-                if genres_str:
-                    req_genres = set(int(x) for x in genres_str.split(","))
-                    m_genres = set(m.get("genre_ids", []))
-                    if not m_genres.intersection(req_genres):
-                        continue
-
-                excluded_genres = params.get("without_genres")
-                if excluded_genres:
-                    excluded = set(int(x) for x in excluded_genres.split(","))
-                    if set(m.get("genre_ids", [])).intersection(excluded):
-                        continue
+                if not _matches_genre_filters(m, params):
+                    continue
 
                 min_rating = params.get("vote_average.gte")
                 if min_rating and m.get("vote_average", 0) < float(min_rating):
@@ -615,7 +627,11 @@ def advanced_discover(params, page=1, media_type="movie"):
                 
         api_params.update(params)
         data = _make_request(endpoint_discover, api_params)
-        results = inject_db_status([formatter(m) for m in data.get("results", [])])
+        results = inject_db_status([
+            formatter(m)
+            for m in data.get("results", [])
+            if _matches_genre_filters(m, params)
+        ])
         return results
 
     params_key = str(sorted(params.items()))
@@ -646,7 +662,11 @@ def advanced_discover(params, page=1, media_type="movie"):
         if not raw:
             break
 
-        batch = inject_db_status([formatter(m) for m in raw])
+        batch = inject_db_status([
+            formatter(m)
+            for m in raw
+            if _matches_genre_filters(m, params)
+        ])
         if show_me == "unseen":
             unseen = [m for m in batch if m.get("status") != "watched"]
         elif show_me == "unseen_unwishlisted":
